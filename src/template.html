@@ -1,0 +1,151 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+<title>街並みジェネレーター — 漫画背景資料用</title>
+<!-- このファイルは tools/build.mjs で src/ から生成しています。直接編集しないでください。 -->
+<style>
+/*@@CSS@@*/
+</style>
+</head>
+<body>
+<div id="app"></div>
+
+<div class="corner tl"></div><div class="corner tr"></div>
+<div class="corner bl"></div><div class="corner br"></div>
+
+<div id="topbar">
+  <div class="title">街並みジェネレーター<small>背景資料用</small></div>
+</div>
+
+<div id="dpad">
+  <button class="up" data-dir="f" aria-label="前進">▲</button>
+  <button class="left" data-dir="l" aria-label="左へ">◀</button>
+  <button class="down" data-dir="b" aria-label="後退">▼</button>
+  <button class="right" data-dir="r" aria-label="右へ">▶</button>
+</div>
+<button id="dice" title="ランダム生成" aria-label="ランダム生成">🎲</button>
+<button id="shutter" aria-label="撮影してPNG保存">撮影</button>
+<div id="busy">生成中…</div>
+
+<div id="panel">
+  <div id="handle">調整</div>
+  <div id="panelbody">
+    <div class="modes seg dark" data-key="mode">
+      <button data-v="res" class="on">住宅街</button>
+      <button data-v="sho">繁華街</button>
+    </div>
+
+    <div class="sectionlabel">道の種類</div>
+    <div class="seg" data-key="street">
+      <button data-v="normal" class="on">通常</button>
+      <button data-v="alley">路地</button>
+      <button data-v="river">川沿い</button>
+      <button data-v="arcade">アーケード</button>
+    </div>
+
+    <div class="sectionlabel">交差</div>
+    <div class="seg" data-key="junction">
+      <button data-v="none" class="on">なし</button>
+      <button data-v="cross">十字路</button>
+      <button data-v="tright">T字（右）</button>
+      <button data-v="tleft">T字（左）</button>
+      <button data-v="rail">踏切</button>
+    </div>
+
+    <div class="sectionlabel">道の形</div>
+    <div class="grid">
+      <div class="ctl"><div class="row"><label>カーブ</label><span class="val" data-for="curve"></span></div>
+        <input type="range" data-key="curve" min="-1" max="1" step="0.05" value="0">
+        <div class="ends"><span>左</span><span>右</span></div></div>
+      <div class="ctl"><div class="row"><label>坂（勾配）</label><span class="val" data-for="slope"></span></div>
+        <input type="range" data-key="slope" min="-14" max="14" step="0.5" value="0">
+        <div class="ends"><span>下り</span><span>上り</span></div></div>
+    </div>
+
+    <div class="sectionlabel">街の構造</div>
+    <div class="grid">
+      <div class="ctl"><div class="row"><label>道幅</label><span class="val" data-for="roadW"></span></div>
+        <input type="range" data-key="roadW" min="2.5" max="16" step="0.5" value="6"></div>
+      <div class="ctl"><div class="row"><label>歩道の幅</label><span class="val" data-for="sidewalk"></span></div>
+        <input type="range" data-key="sidewalk" min="0" max="4" step="0.25" value="1.25"></div>
+      <div class="ctl"><div class="row"><label>建物の密度</label><span class="val" data-for="density"></span></div>
+        <input type="range" data-key="density" min="0.2" max="1" step="0.05" value="0.85"></div>
+      <div class="ctl"><div class="row"><label>マンション率</label><span class="val" data-for="apartments"></span></div>
+        <input type="range" data-key="apartments" min="0" max="0.6" step="0.02" value="0.12"></div>
+      <div class="ctl"><div class="row"><label>建物の高さ</label><span class="val" data-for="height"></span></div>
+        <input type="range" data-key="height" min="0.5" max="2" step="0.05" value="1"></div>
+      <div class="ctl"><div class="row"><label>緑の量</label><span class="val" data-for="green"></span></div>
+        <input type="range" data-key="green" min="0" max="1" step="0.05" value="0.55"></div>
+      <div class="ctl"><div class="row"><label>小物の量</label><span class="val" data-for="props"></span></div>
+        <input type="range" data-key="props" min="0" max="1" step="0.05" value="0.6"></div>
+      <div class="ctl"><div class="row"><label>人の量</label><span class="val" data-for="people"></span></div>
+        <input type="range" data-key="people" min="0" max="1" step="0.05" value="0.25"></div>
+      <div class="ctl"><div class="row"><label>電柱の間隔</label><span class="val" data-for="poleGap"></span></div>
+        <input type="range" data-key="poleGap" min="12" max="45" step="1" value="24"></div>
+    </div>
+
+    <div class="sectionlabel">電柱</div>
+    <div class="seg" data-key="poles">
+      <button data-v="off">なし</button>
+      <button data-v="one" class="on">片側</button>
+      <button data-v="both">両側</button>
+    </div>
+
+    <div class="sectionlabel">時間と天気</div>
+    <div class="seg dark" data-key="time">
+      <button data-v="morning">朝</button>
+      <button data-v="day" class="on">昼</button>
+      <button data-v="evening">夕方</button>
+      <button data-v="night">夜</button>
+    </div>
+    <div class="seg dark" data-key="weather">
+      <button data-v="clear" class="on">晴れ</button>
+      <button data-v="cloudy">曇り</button>
+      <button data-v="rain">雨</button>
+    </div>
+    <div class="grid">
+      <div class="ctl"><div class="row"><label>太陽の向き</label><span class="val" data-for="sunAz"></span></div>
+        <input type="range" data-key="sunAz" min="0" max="360" step="5" value="215"></div>
+      <div class="ctl"><div class="row"><label>影</label><span class="val"></span></div>
+        <div class="seg dark" data-key="shadows">
+          <button data-v="on" class="on">あり</button>
+          <button data-v="off">なし</button>
+        </div></div>
+    </div>
+
+    <div class="sectionlabel">カメラ</div>
+    <div class="grid">
+      <div class="ctl"><div class="row"><label>目線の高さ</label><span class="val" data-for="eyeH"></span></div>
+        <input type="range" data-key="eyeH" min="0.5" max="12" step="0.1" value="1.5"></div>
+      <div class="ctl"><div class="row"><label>画角（レンズ）</label><span class="val" data-for="fov"></span></div>
+        <input type="range" data-key="fov" min="25" max="95" step="1" value="55"></div>
+    </div>
+    <div class="rowbtns">
+      <button id="resetCam">視点を道の上に戻す</button>
+    </div>
+
+    <div class="seedrow">
+      <span class="seed">シード</span>
+      <input id="seedInput" inputmode="numeric" pattern="[0-9]*">
+      <button id="applySeed">再現</button>
+    </div>
+    <div class="hint">
+      ドラッグ＝見回す ／ ⌘（Ctrl）＋ドラッグ＝カメラ移動（左右＝平行／上下＝前後）<br>
+      ⌘＋Shift＋ドラッグ＝上下で目線の高さ ／ ホイール・ピンチ＝前後 ／ WASD・矢印＝移動<br>
+      🎲＝新しい街を生成 ／ 撮影＝現在の画面をPNG保存。シード値を控えれば同じ街を再現できます。
+    </div>
+  </div>
+</div>
+
+<div id="toast"></div>
+
+<script>
+/*@@THREE@@*/
+</script>
+<script>
+/*@@APP@@*/
+</script>
+</body>
+</html>
