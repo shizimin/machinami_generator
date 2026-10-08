@@ -146,6 +146,14 @@
   .siderow{display:flex;align-items:center;gap:8px;margin-bottom:6px}
   .siderow .seg{flex:1;margin-bottom:0}
   .sidelab{font-size:12px;font-weight:700;color:var(--sub);width:1.4em;text-align:center}
+  #shot{
+    position:fixed;inset:0;z-index:60;background:rgba(20,21,24,.86);
+    display:flex;flex-direction:column;align-items:center;justify-content:center;gap:12px;padding:16px;
+  }
+  #shot[hidden]{display:none}
+  #shot img{max-width:100%;max-height:72vh;border:3px solid var(--paper);border-radius:6px;-webkit-touch-callout:default;user-select:auto}
+  #shot p{color:var(--paper);font-size:13px;letter-spacing:.06em;text-align:center}
+  #shot button{padding:9px 22px;border-radius:999px;border:none;background:var(--paper);color:var(--ink);font-size:13px;font-weight:600;cursor:pointer}
 
 </style>
 </head>
@@ -3048,8 +3056,23 @@ document.getElementById('applySeed').addEventListener('click', ()=>{
 });
 document.getElementById('resetCam').addEventListener('click', ()=>{ resetCamera(); toast('視点を戻しました'); });
 
+/* 共有ページ（claude.ai など）の中ではダウンロードが禁止されているので、
+   撮った画像を画面に出して、長押し／右クリックで保存してもらう */
+const SAVE_BY_PREVIEW = !!window.__MACHINAMI_PREVIEW_SAVE__;
+function showShot(url){
+  let ov = document.getElementById('shot');
+  if (!ov){
+    ov = document.createElement('div'); ov.id = 'shot';
+    ov.innerHTML = '<img alt="撮影した画像"><p>画像を長押し（パソコンは右クリック）して保存してください</p><button type="button">閉じる</button>';
+    ov.querySelector('button').addEventListener('click', ()=>{ ov.hidden = true; });
+    document.body.appendChild(ov);
+  }
+  ov.querySelector('img').src = url;
+  ov.hidden = false;
+}
 document.getElementById('shutter').addEventListener('click', ()=>{
   renderer.render(scene, camera);
+  if (SAVE_BY_PREVIEW){ showShot(renderer.domElement.toDataURL('image/png')); return; }
   renderer.domElement.toBlob(blob=>{
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

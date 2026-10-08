@@ -24,3 +24,6 @@ node tools/build.mjs
 - `src/style.css` … UI のスタイル
 - `src/js/*.js` … アプリ本体（ファイル名順に連結）
 - `vendor/three.r128.min.js` … Three.js r128（MIT）
+
+共有ページ（claude.ai のアーティファクト）用には `node tools/build.mjs --artifact <出力先>` で別の版を書き出します。
+共有ページの中ではダウンロードができないため、この版では撮影した画像を画面に表示し、長押し／右クリックで保存する形になります。

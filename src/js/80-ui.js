@@ -112,8 +112,23 @@ document.getElementById('applySeed').addEventListener('click', ()=>{
 });
 document.getElementById('resetCam').addEventListener('click', ()=>{ resetCamera(); toast('視点を戻しました'); });
 
+/* 共有ページ（claude.ai など）の中ではダウンロードが禁止されているので、
+   撮った画像を画面に出して、長押し／右クリックで保存してもらう */
+const SAVE_BY_PREVIEW = !!window.__MACHINAMI_PREVIEW_SAVE__;
+function showShot(url){
+  let ov = document.getElementById('shot');
+  if (!ov){
+    ov = document.createElement('div'); ov.id = 'shot';
+    ov.innerHTML = '<img alt="撮影した画像"><p>画像を長押し（パソコンは右クリック）して保存してください</p><button type="button">閉じる</button>';
+    ov.querySelector('button').addEventListener('click', ()=>{ ov.hidden = true; });
+    document.body.appendChild(ov);
+  }
+  ov.querySelector('img').src = url;
+  ov.hidden = false;
+}
 document.getElementById('shutter').addEventListener('click', ()=>{
   renderer.render(scene, camera);
+  if (SAVE_BY_PREVIEW){ showShot(renderer.domElement.toDataURL('image/png')); return; }
   renderer.domElement.toBlob(blob=>{
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);

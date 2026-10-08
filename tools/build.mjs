@@ -21,3 +21,17 @@ const html = read('src/template.html')
 
 writeFileSync(join(root, 'index.html'), html);
 console.log(`index.html: ${(html.length / 1024).toFixed(0)} KB`);
+
+// --artifact <出力先>：共有ページ用（外側の html/head/body は公開時に付くので外し、
+// 撮影はダウンロードではなく画面表示にする）
+const ai = process.argv.indexOf('--artifact');
+if (ai > 0){
+  const out = html
+    .replace(/<!DOCTYPE html>\s*<html[^>]*>\s*<head>\s*/i, '')
+    .replace(/<meta charset="UTF-8">\s*<meta name="viewport"[^>]*>\s*/i, '')
+    .replace(/<title>[^<]*<\/title>/, '<title>街並みジェネレーター</title>\n<script>window.__MACHINAMI_PREVIEW_SAVE__ = true;</script>')
+    .replace(/<\/head>\s*<body>/i, '')
+    .replace(/<\/body>\s*<\/html>\s*$/i, '');
+  writeFileSync(process.argv[ai + 1], out);
+  console.log(`artifact: ${(out.length / 1024).toFixed(0)} KB -> ${process.argv[ai + 1]}`);
+}
