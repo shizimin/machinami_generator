@@ -72,15 +72,29 @@ function streetPreset(v){
   syncInput('roadW'); syncInput('sidewalk');
 }
 
+/* オフィス街は広い道・広い歩道・電線なし（無電柱化）に寄せる */
+function modePreset(v, prev){
+  if (v === 'off' && state.street !== 'alley'){
+    if (state.roadW < 10) state.roadW = 12;
+    if (state.sidewalk < 3) state.sidewalk = 3.5;
+    state.poles = 'off';
+  } else if (prev === 'off' && state.street !== 'alley'){
+    state.roadW = 6; state.sidewalk = 1.25; state.poles = 'one';
+  }
+  syncInput('roadW'); syncInput('sidewalk'); syncSeg('poles');
+}
+
 const REBUILD_SEGS = ['mode','street','junction','poles','sideL','sideR','backdrop'];
 document.querySelectorAll('.seg[data-key]').forEach(seg=>{
   const key = seg.dataset.key;
   seg.querySelectorAll('button').forEach(b=>{
     b.addEventListener('click', ()=>{
       if (state[key] === b.dataset.v) return;
+      const prev = state[key];
       state[key] = b.dataset.v;
       syncSeg(key);
       if (key === 'street') streetPreset(b.dataset.v);
+      if (key === 'mode') modePreset(b.dataset.v, prev);
       if (REBUILD_SEGS.includes(key)) queueRebuild(0, key === 'street' || key === 'junction');
       else applyEnv();
     });
@@ -103,7 +117,7 @@ document.getElementById('shutter').addEventListener('click', ()=>{
   renderer.domElement.toBlob(blob=>{
     const a = document.createElement('a');
     a.href = URL.createObjectURL(blob);
-    const m = state.mode==='res'?'jutaku':'hankagai';
+    const m = {res:'jutaku', sho:'hankagai', off:'office'}[state.mode];
     a.download = `machinami_${m}_${state.street}_${state.junction}_${state.time}_seed${state.seed}.png`;
     a.click();
     setTimeout(()=>URL.revokeObjectURL(a.href), 5000);

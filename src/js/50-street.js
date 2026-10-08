@@ -494,14 +494,16 @@ function buildTown(){
   /* ================= 建物 ================= */
   const placed = [];
   const ctxBase = {prng, alley, arcade, yokocho: alley && s.mode === 'sho', lowrise: arcade};
-  const lotWfn = arcade || ctxBase.yokocho ? r => range(r,4.5,8) : s.mode === 'sho' ? r => range(r,6,11) : alley ? r => range(r,7,11) : r => range(r,8,13);
-  const gapFn  = arcade || ctxBase.yokocho ? r => range(r,0.02,0.2) : s.mode === 'sho' ? r => range(r,0.05,0.6) : r => range(r,0.3,1.2);
+  const office = s.mode === 'off' && !arcade;
+  const lotWfn = arcade || ctxBase.yokocho ? r => range(r,4.5,8) : office ? r => range(r,15,28) : s.mode === 'sho' ? r => range(r,6,11) : alley ? r => range(r,7,11) : r => range(r,8,13);
+  const gapFn  = arcade || ctxBase.yokocho ? r => range(r,0.02,0.2) : office ? r => range(r,0.6,3) : s.mode === 'sho' ? r => range(r,0.05,0.6) : r => range(r,0.3,1.2);
 
   function tryPlaceLot(path, sc, side, off, lotW, ctx){
     const f = path.at(sc);
     const rot = f.th + side*Math.PI/2;
     let g;
     if (arcade || s.mode === 'sho') g = shoppingLot(rng, lotW, ctx);
+    else if (s.mode === 'off') g = officeLot(rng, lotW, ctx);
     else g = rng() < s.apartments*(alley ? 0.35 : 1) ? apartmentLot(rng, lotW, ctx) : residentialLot(rng, lotW, ctx);
     g.updateMatrixWorld(true);
     const bb = new THREE.Box3().setFromObject(g);
@@ -579,7 +581,7 @@ function buildTown(){
     }
   }
   // 繁華街の街路灯（広めの道）
-  if (!arcade && !alley && (s.mode === 'sho' || s.poles === 'off') && s.roadW >= 5.5){
+  if (!arcade && !alley && (s.mode !== 'res' || s.poles === 'off') && s.roadW >= 5.5){
     for (const side of [-1, 1]){
       if (river && side === rs) continue;
       for (let z = S0 + 10 + (side > 0 ? 11 : 0); z < S1; z += 22){
@@ -596,6 +598,21 @@ function buildTown(){
       if (holesFor(rs).some(h => z > h[0] - 3 && z < h[1] + 3)) continue;
       const f = main.at(z), p = main.pt(z, rs*(far + farWalk - 0.4), 0.35);
       streetLamp(town, p[0], p[1], p[2], f.th + (rs > 0 ? 0 : Math.PI));
+    }
+  }
+
+  /* ================= 街路樹（オフィス街・広い歩道） ================= */
+  if (!arcade && (office || sw >= 3)){
+    for (const side of [-1, 1]){
+      if (!hasWalk(side) || swSide(side) < 2 || (river && side === rs)) continue;
+      const o = side*(hw + 0.18 + 0.9);
+      for (let z = S0 + 6 + (side > 0 ? 4.5 : 0); z < S1 - 3; z += 9){
+        if (holesFor(side).some(h => z > h[0] - 4 && z < h[1] + 4)) continue;
+        if (z > 88 && z < 100) continue;
+        const p = main.pt(z, o, 0.15), f = main.at(z);
+        const pit = box(1.3, 0.03, 1.3, MAT.steelDk); pit.position.set(p[0], p[1] + 0.005, p[2]); pit.rotation.y = f.th; town.add(pit);
+        const t = tree(prng, range(prng, 1.2, 1.7)); t.position.set(p[0], p[1], p[2]); town.add(t);
+      }
     }
   }
 

@@ -363,3 +363,138 @@ function shoppingLot(rng, lotW, ctx){
   }
   return g;
 }
+
+/* --- オフィスビル（オフィス街） ---
+   外観は 3 種類：ガラスのカーテンウォール／石張りに窓が並ぶ／横連窓。
+   窓は 1 枚ずつ枠を作らず、階ごとのガラス帯＋方立て・梁型でまとめて軽くする。 */
+const OFFICE_TINTS = [0x34495a, 0x2f4a4c, 0x4a5560, 0x56697a, 0x3a3f46];
+function officeGlass(tint, lit){
+  return M(tint, lit ? {r:0.06, m:0.7, glow:0.22, glowHex:0xdfe8f0} : {r:0.06, m:0.7});
+}
+const OFFICE_STONE = [0xd9d4ca, 0xbfb9ae, 0x9aa0a6, 0xe6e2da, 0x70757b, 0xcfc6b6];
+MAT.mullion = M(0x8c9399, {r:0.35, m:0.6});
+
+/* 1 つの面のファサード。face のローカル：幅 W（x）、y=0 から上、外向きは -Z */
+function officeFacade(face, rng, style, W, floors, fh, wallMat, tint, litR){
+  const H = floors*fh;
+  if (style === 'curtain'){
+    const segs = Math.max(1, Math.round(W/4.5)), sw = W/segs;
+    for (let f=0; f<floors; f++)
+      for (let k=0; k<segs; k++)
+        B(face, sw - 0.02, fh - 0.04, 0.06, officeGlass(tint, rng() < litR), -W/2 + (k+0.5)*sw, f*fh + fh/2, -0.03);
+    for (let x = -W/2; x <= W/2 + 0.01; x += W/Math.max(2, Math.round(W/1.6)))
+      B(face, 0.07, H, 0.16, MAT.mullion, x, H/2, -0.08);
+    for (let f=0; f<=floors; f++) B(face, W + 0.04, 0.12, 0.14, MAT.mullion, 0, f*fh, -0.07);
+  } else if (style === 'bands'){
+    const segs = Math.max(1, Math.round(W/4.5)), sw = W/segs;
+    for (let f=0; f<floors; f++){
+      for (let k=0; k<segs; k++)
+        B(face, sw - 0.02, fh*0.5, 0.06, officeGlass(tint, rng() < litR), -W/2 + (k+0.5)*sw, f*fh + fh*0.58, -0.03);
+      B(face, W + 0.1, 0.1, 0.35, wallMat, 0, f*fh + fh*0.3, -0.17);       // 庇状の水平ルーバー
+    }
+    for (let x = -W/2 + 0.05; x <= W/2; x += 3) B(face, 0.06, H, 0.1, MAT.mullion, x, H/2, -0.06);
+  } else {
+    const cols = Math.max(2, Math.round(W/2.3)), cw = W/cols;
+    for (let f=0; f<floors; f++)
+      for (let c=0; c<cols; c++)
+        B(face, cw*0.62, fh*0.58, 0.05, officeGlass(tint, rng() < litR), -W/2 + (c+0.5)*cw, f*fh + fh*0.55, -0.02);
+    for (let c=0; c<=cols; c++) B(face, 0.3, H, 0.3, wallMat, -W/2 + c*cw, H/2, -0.15);   // 柱型
+    for (let f=0; f<=floors; f++) B(face, W + 0.3, 0.24, 0.26, wallMat, 0, f*fh + 0.12, -0.13); // 梁型
+  }
+}
+
+/* 直方体のボリューム 1 段分（前面と両側面にファサード、背面は壁のまま） */
+function officeMass(g, rng, o, cx, cz, w, d, y0, floors, skipFrontBelow){
+  const H = floors*o.fh;
+  Bb(g, w, H, d, o.wall, cx, y0, cz);
+  const faces = [[cx, cz - d/2, 0, w], [cx - w/2, cz, Math.PI/2, d], [cx + w/2, cz, -Math.PI/2, d]];
+  for (const [x, z, ry, W] of faces){
+    const f = new THREE.Group(); f.position.set(x, y0, z); f.rotation.y = ry; g.add(f);
+    officeFacade(f, rng, o.style, W - 0.4, floors, o.fh, o.wall, o.tint, o.litR);
+  }
+  return y0 + H;
+}
+
+function officeLot(rng, lotW, ctx){
+  const s = state, g = new THREE.Group(), pr = ctx.prng;
+  const depth = range(rng, 20, 30);
+  const plazaMat = pick(rng, [M(0xcfcac0, {r:0.8}), M(0xb9b4ab, {r:0.8}), M(0xd8d0c2, {r:0.8})]);
+  podium(g, lotW - 0.2, depth, 0.15, plazaMat);
+  const o = {
+    style: pick(rng, ['curtain', 'curtain', 'punched', 'bands']),
+    wall: M(pick(rng, OFFICE_STONE), {r:0.7}),
+    tint: pick(rng, OFFICE_TINTS),
+    fh: range(rng, 3.7, 4.2),
+    litR: range(rng, 0.45, 0.8),
+  };
+  const plaza = rng() < 0.6 ? range(rng, 3, 7) : range(rng, 1, 2);    // 公開空地
+  const bw = lotW - range(rng, 1, 3.5);
+  const bd = Math.min(depth - plaza - 0.8, range(rng, 14, 22));
+  const front = 0.15 + plaza, cz = front + bd/2;
+  const floors = Math.max(4, Math.round(range(rng, 7, 26) * s.height));
+  const lobbyH = o.fh*1.5;
+
+  // 低層部（ロビー）：ガラス張り＋列柱＋庇
+  Bb(g, bw, lobbyH, bd, o.wall, 0, 0.15, cz);
+  B(g, bw*0.92, lobbyH - 0.4, 0.06, MAT.glassCool, 0, 0.15 + (lobbyH - 0.4)/2, front - 0.03);
+  const nCol = Math.max(2, Math.round(bw/4.5));
+  for (let i=0; i<=nCol; i++) Bb(g, 0.6, lobbyH, 0.6, o.wall, -bw/2 + 0.3 + i*(bw - 0.6)/nCol, 0.15, front - 0.6);
+  const ex = range(rng, -1, 1)*bw*0.2, cw = Math.min(bw*0.6, range(rng, 6, 10));
+  Bb(g, cw, 0.3, 3.2, pick(rng, [o.wall, MAT.mullion]), ex, 0.15 + lobbyH - 0.5, front - 1.6);
+  for (const sx of [-1, 1]) C(g, 0.09, 0.09, lobbyH - 0.5, 8, MAT.mullion, ex + sx*(cw/2 - 0.3), 0.15, front - 3.0);
+
+  // 高層部（たまにセットバックして 2 段）
+  let top;
+  if (floors > 14 && rng() < 0.45){
+    const f1 = Math.round(floors*0.6);
+    top = officeMass(g, rng, o, 0, cz, bw, bd, 0.15 + lobbyH, f1);
+    const w2 = bw*range(rng, 0.65, 0.8), d2 = bd*range(rng, 0.7, 0.85);
+    Bb(g, bw + 0.2, 0.9, bd + 0.2, o.wall, 0, top, cz);
+    top = officeMass(g, rng, o, range(rng, -1, 1)*(bw - w2)*0.3, cz + (bd - d2)*0.3, w2, d2, top, floors - f1);
+    Bb(g, w2 + 0.2, 1.0, d2 + 0.2, o.wall, 0, top, cz + (bd - d2)*0.3);
+    o.topW = w2; o.topD = d2; o.topZ = cz + (bd - d2)*0.3;
+  } else {
+    top = officeMass(g, rng, o, 0, cz, bw, bd, 0.15 + lobbyH, floors);
+    Bb(g, bw + 0.2, 1.0, bd + 0.2, o.wall, 0, top, cz);
+    o.topW = bw; o.topD = bd; o.topZ = cz;
+  }
+  // 屋上：設備・冷却塔・ヘリポート・航空障害灯・社名看板
+  const rw = o.topW, rd = o.topD, rz = o.topZ;
+  Bb(g, rw*0.35, 2.2, rd*0.3, M(0x8d9096, {r:0.6, m:0.3}), range(rng, -1, 1)*rw*0.2, top, rz + rd*0.15);
+  if (rng() < 0.6) for (let i=0; i<2; i++) C(g, 1.1, 1.3, 2.4, 12, M(0x9aa2a8, {r:0.5, m:0.3}), -rw*0.3 + i*2.6, top, rz - rd*0.25);
+  if (top > 70 && rng() < 0.6){
+    Bb(g, Math.min(rw, rd)*0.75, 0.25, Math.min(rw, rd)*0.75, MAT.steelDk, 0, top + 2.4, rz);
+    const hp = disc(Math.min(rw, rd)*0.3, 0.02, 24, MAT.white); hp.rotation.x = -Math.PI/2; hp.position.set(0, top + 2.67, rz); hp.scale.z = 0.02; g.add(hp);
+    for (const x of [-0.8, 0.8]) B(g, 0.35, 0.03, 2.4, MAT.yellow, x, top + 2.7, rz);
+    B(g, 1.3, 0.03, 0.35, MAT.yellow, 0, top + 2.7, rz);
+  }
+  for (const sx of [-1, 1]) for (const sz of [-1, 1]){
+    const l = sphere(0.18, 1, MAT.redLit); l.position.set(sx*(rw/2), top + 1.2, rz + sz*rd/2); g.add(l);
+  }
+  if (rng() < 0.5){
+    const sw = Math.min(rw*0.6, 14);
+    B(g, sw, 1.8, 0.25, pick(rng, [SIGNS[3], SIGNS[7], SIGNS[1], SIGNS[6]]), 0, top + 2.0, rz - rd/2 + 0.3);
+  }
+  if (top > 50 && rng() < 0.5) rod(g, rw*0.25, top, rz, rw*0.25, top + 9, rz, 0.08, MAT.steel);
+
+  // 公開空地：植栽・ベンチ・社名の石・旗竿・車止め
+  if (plaza > 2.5){
+    const nT = 1 + (rng()*3|0);
+    for (let i=0; i<nT; i++){
+      const tx = -bw/2 + (i + 0.5)*bw/nT + range(rng, -1, 1);
+      if (Math.abs(tx - ex) < cw/2 + 1.2) continue;
+      Bb(g, 1.8, 0.5, 1.8, MAT.concrete, tx, 0.15, 0.15 + plaza*0.5);
+      const t = tree(rng, range(rng, 1.1, 1.6)); t.position.set(tx, 0.65, 0.15 + plaza*0.5); g.add(t);
+      if (pr() < s.props) Bb(g, 1.6, 0.42, 0.45, MAT.wood, tx + 1.9, 0.15, 0.15 + plaza*0.5);
+    }
+    Bb(g, 2.6, 0.9, 0.5, o.wall, ex + cw/2 + 2.2, 0.15, 0.8);
+    B(g, 1.8, 0.35, 0.02, MAT.frameDk, ex + cw/2 + 2.2, 0.75, 0.54);
+    if (rng() < 0.3) for (let i=0; i<3; i++){
+      const fx = -bw/2 + 1 + i*1.2;
+      C(g, 0.04, 0.05, 8, 6, MAT.steel, fx, 0.15, 0.8);
+      B(g, 0.02, 0.9, 1.4, pick(rng, SIGNS), fx, 7.4, 0.8 + 0.7);
+    }
+  }
+  if (pr() < s.props*0.7) for (let x = -lotW/2 + 0.8; x < lotW/2 - 0.5; x += 1.6) C(g, 0.09, 0.09, 0.8, 8, MAT.steelDk, x, 0.15, 0.35);
+  return g;
+}
