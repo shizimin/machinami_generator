@@ -72,7 +72,7 @@ function streetPreset(v){
   syncInput('roadW'); syncInput('sidewalk');
 }
 
-const REBUILD_SEGS = ['mode','street','junction','poles'];
+const REBUILD_SEGS = ['mode','street','junction','poles','sideL','sideR','backdrop'];
 document.querySelectorAll('.seg[data-key]').forEach(seg=>{
   const key = seg.dataset.key;
   seg.querySelectorAll('button').forEach(b=>{
@@ -139,7 +139,7 @@ function loop(now){
   requestAnimationFrame(loop);
 }
 
-for (const k of ['mode','street','junction','poles','time','weather','shadows']) syncSeg(k);
+for (const k of ['mode','street','junction','poles','sideL','sideR','backdrop','time','weather','shadows']) syncSeg(k);
 applyEnv();
 rebuildNow();
 requestAnimationFrame(loop);

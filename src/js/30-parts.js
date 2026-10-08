@@ -79,7 +79,7 @@ function hipRoof(parent, w, d, h, mat, x, y, z){
 }
 
 /* ---------- 木 ---------- */
-function tree(rng, scale, leafMat){
+function tree(rng, scale, leafMat, detail){
   const g = new THREE.Group();
   const th = range(rng,1.2,2.0)*scale;
   C(g, 0.08*scale, 0.14*scale, th + 0.6*scale, 6, MAT.trunk, 0, 0, 0);
@@ -88,7 +88,7 @@ function tree(rng, scale, leafMat){
   const n = 3 + (rng()*3|0);
   for (let i=0; i<n; i++){
     const a = i/n*Math.PI*2 + rng(), rr = i ? base*range(rng,0.55,0.8) : base;
-    const leaf = sphere(rr, 1, mat);
+    const leaf = sphere(rr, detail ?? 1, mat);
     leaf.position.set(i ? Math.cos(a)*base*0.55 : 0, th + base*0.6 + (i ? range(rng,-0.3,0.5)*base : 0.2*base), i ? Math.sin(a)*base*0.55 : 0);
     leaf.scale.y *= 0.85;
     leaf.rotation.set(rng()*3, rng()*3, 0);

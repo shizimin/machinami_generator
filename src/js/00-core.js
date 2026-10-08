@@ -4,6 +4,8 @@ const state = {
   mode:'res',            // res=住宅街 / sho=繁華街
   street:'normal',       // normal / alley(路地) / river(川沿い) / arcade(アーケード)
   junction:'none',       // none / cross / tright / tleft / rail(踏切)
+  sideL:'town', sideR:'town',   // 道の左右：town(街) / mountain(山) / sea(海)
+  backdrop:'low',        // 遠くの山並み：none / low / high
   poles:'one',
   seed:(Math.random()*1e9)>>>0,
   curve:0, slope:0,

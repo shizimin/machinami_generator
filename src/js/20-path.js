@@ -76,7 +76,9 @@ function makeStraightPath(th, u0, u1, y){
   return new Path(pts);
 }
 
-/* ================= 帯状メッシュ ================= */
+/* ================= 帯状メッシュ =================
+   高さ h は数値か、関数 (s, f) => 高さ（f はその位置の中心線の情報）。 */
+const hv = (h, s, f) => typeof h === 'function' ? h(s, f) : h;
 /* 水平の帯：横 offA..offB、高さ hA/hB（左右で変えると斜面になる）。上向き */
 function ribbon(path, sA, sB, offA, offB, hA, hB, mat){
   if (sB - sA < 0.05) return null;
@@ -85,7 +87,7 @@ function ribbon(path, sA, sB, offA, offB, hA, hB, mat){
   const pos = [], uv = [], idx = [];
   for (let i=0; i<st.length; i++){
     const s = st[i], f = path.at(s);
-    pos.push(f.x+f.nx*offA, f.y+hA, f.z+f.nz*offA,  f.x+f.nx*offB, f.y+hB, f.z+f.nz*offB);
+    pos.push(f.x+f.nx*offA, f.y+hv(hA,s,f), f.z+f.nz*offA,  f.x+f.nx*offB, f.y+hv(hB,s,f), f.z+f.nz*offB);
     uv.push(offA, s, offB, s);
     if (i){ const a = 2*i-2; idx.push(a, a+2, a+1,  a+1, a+2, a+3); }
   }
@@ -98,8 +100,9 @@ function wallRibbon(path, sA, sB, off, h0, h1, face, mat){
   const pos = [], uv = [], idx = [];
   for (let i=0; i<st.length; i++){
     const s = st[i], f = path.at(s), x = f.x+f.nx*off, z = f.z+f.nz*off;
-    pos.push(x, f.y+h0, z,  x, f.y+h1, z);
-    uv.push(s, h0, s, h1);
+    const a0 = hv(h0,s,f), a1 = hv(h1,s,f);
+    pos.push(x, f.y+a0, z,  x, f.y+a1, z);
+    uv.push(s, f.y+a0, s, f.y+a1);
     if (i){
       const a = 2*i-2;   // a=下, a+1=上, a+2=次の下, a+3=次の上
       if (face > 0) idx.push(a, a+1, a+2,  a+1, a+3, a+2);
@@ -128,9 +131,9 @@ function prism(parent, path, sA, sB, offA, offB, h0, h1, mat, sideMat){
   ]) if (m) parent.add(m);
   // 両端のふた
   for (const [s, dir] of [[sA,-1],[sB,1]]){
-    const a = path.pt(s, offA, h0), b = path.pt(s, offB, h0), c = path.pt(s, offB, h1), d = path.pt(s, offA, h1);
-    const f = path.at(s);
-    const inside = new THREE.Vector3(f.x - f.tx*dir, f.y + (h0+h1)/2, f.z - f.tz*dir);
+    const f = path.at(s), b0 = hv(h0,s,f), b1 = hv(h1,s,f);
+    const a = path.pt(s, offA, b0), b = path.pt(s, offB, b0), c = path.pt(s, offB, b1), d = path.pt(s, offA, b1);
+    const inside = new THREE.Vector3(f.x - f.tx*dir, f.y + (b0+b1)/2, f.z - f.tz*dir);
     parent.add(new THREE.Mesh(polyGeo([[a,b,c],[a,c,d]], inside), sm));
   }
 }

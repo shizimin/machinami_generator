@@ -20,9 +20,11 @@ function M(hex, o){
   if (o.map){ m.map = TEX[o.map](); }
   if (o.op !== undefined){ m.transparent = true; m.opacity = o.op; m.depthWrite = false; }
   if (o.side2) m.side = THREE.DoubleSide;
+  if (o.nofog) m.fog = false;
   m.userData = {
     base: hex, r0: m.roughness, glow: o.glow || 0, glowHex: o.glowHex ?? hex, always: !!o.always,
     wet: o.wet || 0, noCast: !!(o.noCast || o.op !== undefined), noReceive: !!o.noReceive,
+    haze: o.haze || 0,   // 遠景：空の地平線の色へ寄せる割合
   };
   MATS.set(key, m);
   return m;
@@ -83,6 +85,23 @@ const TEX = {
     g.fillStyle = '#b9b5ad';
     for (let i=0;i<2;i++) g.fillRect(0, i*n/2, n, 2);
   }, 1)),
+  kenchi: lazyTex('kenchi', ()=> canvasTex(256, (g,n)=>{
+    // 間知ブロック積みの擁壁（菱形の石＋水抜き穴）
+    g.fillStyle = '#8f8b83'; g.fillRect(0,0,n,n);
+    const r = mulberry32(21), w = n/4, h = n/4;
+    for (let j=-1; j<=8; j++){
+      for (let i=-1; i<=4; i++){
+        const cx = i*w + (j%2 ? w/2 : 0), cy = j*h/2;
+        const v = 185 + r()*45;
+        g.fillStyle = `rgb(${v},${v-3},${v-8})`;
+        g.beginPath();
+        g.moveTo(cx - w/2 + 3, cy); g.lineTo(cx, cy - h/2 + 3); g.lineTo(cx + w/2 - 3, cy); g.lineTo(cx, cy + h/2 - 3);
+        g.closePath(); g.fill();
+      }
+    }
+    g.fillStyle = '#2b2b2b';
+    for (const [x,y] of [[n*0.25, n*0.5], [n*0.75, n*0.0], [n*0.75, n]]){ g.beginPath(); g.arc(x, y, 7, 0, Math.PI*2); g.fill(); }
+  }, 2.4)),
   pool: lazyTex('pool', ()=>{
     const c = document.createElement('canvas'); c.width = c.height = 128;
     const g = c.getContext('2d');
@@ -145,6 +164,14 @@ const MAT = {
   wood:     M(0x8a6a4c, {r:0.85}),
   woodDk:   M(0x5c4634, {r:0.85}),
   leafCherry:M(0xf0c3cf, {r:0.9, flat:true}),
+  kenchi:   M(0xffffff, {map:'kenchi', r:0.95}),
+  sand:     M(0xd8cba9, {map:'asphalt', r:1, wet:1}),
+  sea:      M(0x2a5062, {r:0.08, m:0.05, noCast:true}),
+  slope:    M(0x55693f, {r:1, flat:true}),
+  tunnel:   M(0x0b0b0c, {r:1}),
+  vermilion:M(0xd2452a, {r:0.6}),
+  farMount: M(0x5c7266, {r:1, flat:true, side2:true, nofog:true, haze:0.5, noCast:true, noReceive:true}),
+  farMountH:M(0x6b7d78, {r:1, flat:true, side2:true, nofog:true, haze:0.62, noCast:true, noReceive:true}),
 };
 /* 夜の光だまり（街灯の下の地面）。加算合成の平面 */
 MAT.pool = new THREE.MeshBasicMaterial({map:TEX.pool(), color:lin(0xffd9a0), transparent:true, opacity:0.55,

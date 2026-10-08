@@ -126,6 +126,7 @@ function applyEnv(){
 function refreshMaterials(){
   const T = TIMES[state.time], Wt = WEATHER[state.weather];
   const night = T.night;
+  const hor = weatherize(T.hor, Wt);
   for (const m of MATS.values()){
     const u = m.userData;
     if (u.nightOnly){ m.visible = night > 0; m.opacity = 0.55*night; continue; }
@@ -134,6 +135,12 @@ function refreshMaterials(){
       m.emissive.copy(lin(u.glowHex)).multiplyScalar(u.glow * k);
     }
     m.envMapIntensity = T.env;
+    if (u.haze){
+      // 遠景：日の当たり方は弱め、空の色の「もや」を自発光で重ねる
+      m.color.copy(lin(u.base)).multiplyScalar((1 - u.haze)*0.7);
+      m.emissive.copy(hor).multiplyScalar(u.haze*0.92);
+      m.envMapIntensity = 0;
+    }
     if (u.wet){
       m.color.copy(lin(u.base)).multiplyScalar(Wt.wet ? 0.55 : 1);
       m.roughness = Wt.wet ? 0.16 : u.r0;

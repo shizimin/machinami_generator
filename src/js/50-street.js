@@ -128,13 +128,23 @@ function buildTown(){
   const hrng = mulberry32(s.seed ^ 0x27d4eb2f);   // 人
   const srng = mulberry32(s.seed ^ 0x165667b1);   // 道の付帯設備
 
-  const street = s.street, alley = street === 'alley', river = street === 'river', arcade = street === 'arcade';
-  const J = s.junction, hasCross = J === 'cross' || J === 'tright' || J === 'tleft', hasRail = J === 'rail';
+  // 道の両側（街・山・海）
+  const sideKind = side => side < 0 ? s.sideL : s.sideR;
+  const townSides = [-1, 1].filter(sd => sideKind(sd) === 'town');
+
+  const street = s.street, alley = street === 'alley', arcade = street === 'arcade';
+  const river = street === 'river' && townSides.length > 0;
   const hw = s.roadW/2;
   const sw = arcade ? 0 : s.sidewalk;
+  // 交差道路は海側には出さない（山側はトンネルへ入る）
+  const J = s.junction;
+  const arms = (J === 'cross' ? [[-HALF_LEN, -hw], [hw, HALF_LEN]] : J === 'tright' ? [[hw, HALF_LEN]]
+    : J === 'tleft' ? [[-HALF_LEN, -hw]] : []).filter(a => sideKind(a[0] > 0 ? 1 : -1) !== 'sea');
+  const hasCross = arms.length > 0, hasRail = J === 'rail';
 
-  // 川の配置
-  const rs = srng() < 0.5 ? -1 : 1;
+  // 川の配置（街の側に流す）
+  const rsRoll = srng() < 0.5 ? -1 : 1;
+  const rs = townSides.length === 1 ? townSides[0] : rsRoll;
   const RW = range(srng, 12, 22);
   const swR = Math.max(sw, 1.8);
   const swSide = side => (river && side === rs) ? swR : sw;
@@ -151,9 +161,14 @@ function buildTown(){
 
   // 交差道路
   const cross = hasCross ? makeStraightPath(Math.PI/2, -HALF_LEN, HALF_LEN, 0) : null;
-  const arms = !hasCross ? [] : J === 'cross' ? [[-HALF_LEN, -hw], [hw, HALF_LEN]]
-    : J === 'tright' ? [[hw, HALF_LEN]] : [[-HALF_LEN, -hw]];
   const armSides = arms.map(a => a[0] > 0 ? 1 : -1);
+  // 山側：擁壁の面・小段・トンネル坑口の横位置
+  const mtnPortal = side => edgeSide(side) + 0.02 + 1.2 + 6;
+  const farEnd = side => sideKind(side) === 'mountain' ? mtnPortal(side) + 40 : HALF_LEN;
+  for (const a of arms){ if (a[0] > 0) a[1] = Math.min(a[1], farEnd(1)); else a[0] = Math.max(a[0], -farEnd(-1)); }
+  let seaY = Infinity;
+  for (let z = -HALF_LEN; z <= HALF_LEN; z += 5) seaY = Math.min(seaY, main.at(z).y);
+  seaY -= 2.2;
   const rail = hasRail ? makeStraightPath(Math.PI/2, -HALF_LEN, HALF_LEN, 0) : null;
 
   // 交差点で本線の歩道などを切る区間（side 側）
@@ -173,6 +188,7 @@ function buildTown(){
     if (Math.abs(p.along) < 1.5){
       const sd = p.lat >= 0 ? 1 : -1;
       if (Math.abs(p.lat) < edgeSide(sd) + 0.1) return true;
+      if (sideKind(sd) !== 'town') return true;
       if (river && sd === rs && Math.abs(p.lat) < far + farWalk + 0.2) return true;
     }
     if (cross){
@@ -317,17 +333,21 @@ function buildTown(){
   /* ================= 踏切・線路 ================= */
   if (rail){
     const bandL = -edgeSide(-1) - 0.4, bandR = edgeSide(1) + 0.4;
+    const lo = -farEnd(-1), hi = farEnd(1);
+    // 橋の区間（川・海）
+    const brs = bridgeU ? [[...bridgeU, 'river']] : [];
+    for (const sd of [-1, 1]) if (sideKind(sd) === 'sea') brs.push(sd > 0 ? [edgeSide(1) + 0.02, S1 + 1, 'sea'] : [S0 - 1, -edgeSide(-1) - 0.02, 'sea']);
     const railSeg = (a, b) => {
-      const segs = [];
-      for (const [c, d] of subtractRanges([a, b], bridgeU ? [bridgeU] : [])) segs.push([c, d, false]);
-      if (bridgeU && bridgeU[1] > a && bridgeU[0] < b) segs.push([Math.max(a,bridgeU[0]), Math.min(b,bridgeU[1]), true]);
+      const segs = subtractRanges([a, b], brs.map(r => [r[0], r[1]])).map(([c, d]) => [c, d, false]);
+      for (const br of brs) if (br[1] > a && br[0] < b) segs.push([Math.max(a, br[0]), Math.min(b, br[1]), br[2]]);
       return segs;
     };
-    for (const [a0, b0] of [[S0, bandL], [bandR, S1]]){
+    for (const [a0, b0] of [[lo, bandL], [bandR, hi]]){
       for (const [a, b, br] of railSeg(a0, b0)){
         if (br){
           prism(town, rail, a, b, -rb, rb, -1.4, 0.12, MAT.steelDk);
           for (const zs of [-1,1]) prism(town, rail, a, b, zs*(rb-0.2), zs*rb, 0.12, 1.3, MAT.steel);
+          if (br === 'sea') for (let u = a + 6; u < b; u += 14){ const p = rail.pt(u, 0); Bb(town, 1.4, -1.4 - (seaY - 1), 2*rb - 1.2, MAT.concrete, p[0], seaY - 1, p[2]); }
         } else {
           prism(town, rail, a, b, -rb, rb, -1.2, 0.1, MAT.ballast, MAT.ballast);
           for (const zs of [-1,1]){ const m = ribbon(rail, a, b, zs*rb, zs*(rb+0.9), 0.1, -0.05, MAT.ballast); if (m) town.add(m); }
@@ -342,15 +362,15 @@ function buildTown(){
     for (const c of [-2, 2]){
       prism(town, rail, bandL, bandR, c-0.62, c+0.62, 0.06, 0.075, MAT.black);
       for (const r of [-0.535, 0.535]){
-        prism(town, rail, S0, bandL, c+r-0.035, c+r+0.035, 0.24, 0.38, MAT.rail);
-        prism(town, rail, bandR, S1, c+r-0.035, c+r+0.035, 0.24, 0.38, MAT.rail);
+        prism(town, rail, lo, bandL, c+r-0.035, c+r+0.035, 0.24, 0.38, MAT.rail);
+        prism(town, rail, bandR, hi, c+r-0.035, c+r+0.035, 0.24, 0.38, MAT.rail);
         prism(town, rail, bandL, bandR, c+r-0.035, c+r+0.035, 0.06, 0.1, MAT.rail);
       }
     }
     // 柵
     const fenceMat = M(0x5d6b62, {r:0.6, m:0.3});
     for (const zs of [-1, 1]){
-      for (const [a0, b0] of [[S0, bandL - 1.5], [bandR + 1.5, S1]]){
+      for (const [a0, b0] of [[lo, bandL - 1.5], [bandR + 1.5, hi]]){
         for (const [a, b, br] of railSeg(a0, b0)){
           if (br) continue;
           for (let u = a; u <= b; u += 2.5){ const p = rail.pt(u, zs*4.5); Bb(town, 0.06, 1.5, 0.06, fenceMat, p[0], p[1], p[2]); }
@@ -361,6 +381,7 @@ function buildTown(){
     // 架線柱
     for (let u = S0 + 8; u < S1; u += 45){
       if (u > bandL - 6 && u < bandR + 6) continue;
+      if (u < lo + 42 || u > hi - 42) continue;
       if (bridgeU && u > bridgeU[0] - 1 && u < bridgeU[1] + 1) continue;
       for (const zs of [-1, 1]){ const p = rail.pt(u, zs*4.0); Bb(town, 0.3, 7.2, 0.3, MAT.steel, p[0], p[1], p[2]); }
       const p = rail.pt(u, 0); B(town, 0.3, 0.4, 8.6, MAT.steel, p[0], p[1] + 6.9, p[2]);
@@ -522,16 +543,19 @@ function buildTown(){
     }
   }
   const lotHoles = side => holesFor(side).map(h => [h[0] - 0.8, h[1] + 0.8]);
-  for (const side of [-1, 1]){
+  for (const side of townSides){
     if (river && side === rs) placeRow(main, side, -LOT_HALF, LOT_HALF, lotHoles(side), far + farWalk + 0.4, {...ctxBase, arcade:false, lowrise:false});
     else placeRow(main, side, -LOT_HALF, LOT_HALF, lotHoles(side), edgeSide(side) + 0.3, ctxBase);
   }
   if (cross){
-    for (const [a, b] of arms)
+    for (const [a, b] of arms.filter(a => sideKind(a[0] > 0 ? 1 : -1) === 'town'))
       for (const zs of [-1, 1]) placeRow(cross, zs, a, b, [[-edgeSide(-1)-0.5, edgeSide(1)+0.5]], edge + 0.3, {...ctxBase, arcade:false, lowrise:false});
   }
   if (rail){
-    for (const zs of [-1, 1]) placeRow(rail, zs, S0 + 20, S1 - 20, [[-edgeSide(-1)-2, edgeSide(1)+2]], 5.9, {...ctxBase, arcade:false, lowrise:false});
+    const railLotHoles = [[-edgeSide(-1)-2, edgeSide(1)+2]];
+    if (sideKind(-1) !== 'town') railLotHoles.push([S0, 0]);
+    if (sideKind(1) !== 'town') railLotHoles.push([0, S1]);
+    for (const zs of [-1, 1]) placeRow(rail, zs, S0 + 20, S1 - 20, railLotHoles, 5.9, {...ctxBase, arcade:false, lowrise:false});
   }
 
   /* ================= 電柱・街灯 ================= */
@@ -600,7 +624,7 @@ function buildTown(){
   // ガードレール（歩道なし）／ガードパイプ（歩道あり）
   if (!alley && !arcade && s.roadW >= 5){
     for (const side of [-1, 1]){
-      if (river && side === rs) continue;
+      if ((river && side === rs) || sideKind(side) === 'sea') continue;
       for (let z = S0; z < S1; z += 30){
         if (srng() > 0.2 + P*0.5) continue;
         for (const [a, b] of subtractRanges([z, z + range(srng, 12, 28)], holesFor(side).map(h => [h[0] - 4, h[1] + 4]))){
@@ -659,7 +683,7 @@ function buildTown(){
     }
     // 交差道路の歩道にも
     if (cross && sw > 0.6){
-      for (const [a, b] of arms){
+      for (const [a, b] of arms.filter(a => sideKind(a[0] > 0 ? 1 : -1) === 'town')){
         const m = Math.round(s.people * 10 * Math.abs(b - a)/100);
         for (let i=0; i<m; i++){
           const u = range(hrng, a, b), zs = hrng() < 0.5 ? -1 : 1;
@@ -674,7 +698,33 @@ function buildTown(){
   }
 
   /* ================= 地面 ================= */
-  town.add(buildGround(main, river ? {rs, e0, far} : null));
+  /* ================= 山・海・遠くの山並み ================= */
+  const orng = mulberry32(s.seed ^ 0x2545f491);
+  for (const side of [-1, 1]){
+    const kind = sideKind(side);
+    if (kind === 'mountain'){
+      const notches = [];
+      if (hasCross && armSides.includes(side)) notches.push({s0: -(edge + 0.1), s1: edge + 0.1, ow: edge + 0.15, oh: 5.2});
+      if (hasRail) notches.push({s0: -(rb + 1.0), s1: rb + 1.0, ow: rb + 0.3, oh: 6.6});
+      buildMountainSide(town, {main, side, r: orng, edge: edgeSide(side), notches, curve: s.curve, green: s.green, S0, S1});
+    } else if (kind === 'sea'){
+      buildSeaSide(town, {main, side, r: orng, edge: edgeSide(side), holes: holesFor(side), seaY,
+        flat: Math.abs(s.slope) < 1.5, hasWalk: hasWalk(side), S0, S1});
+    }
+  }
+  const anySea = s.sideL === 'sea' || s.sideR === 'sea';
+  if (anySea){
+    const sea = new THREE.Mesh(cachedGeo('seaPlane', () => { const p = new THREE.PlaneGeometry(6000, 6000); p.rotateX(-Math.PI/2); return p; }), MAT.sea);
+    sea.position.y = seaY; town.add(sea);
+  }
+  if (s.backdrop !== 'none'){
+    const seaAngles = [-1, 1].filter(sd => sideKind(sd) === 'sea').map(sd => sd*Math.PI/2);
+    buildBackdrop(town, s.backdrop, mulberry32(s.seed ^ 0x61c88647), anySea ? seaY - 0.5 : seaY - 2, seaAngles);
+  }
+
+  /* ================= 地面 ================= */
+  const cuts = [-1, 1].filter(sd => sideKind(sd) !== 'town').map(sd => ({side: sd, lat: edgeSide(sd)}));
+  town.add(buildGround(main, river ? {rs, e0, far} : null, cuts, anySea ? 220 : 120));
 
   world = mergeByMaterial(town);
   town = null;
@@ -684,9 +734,9 @@ function buildTown(){
 }
 
 /* 地面：中心線からの標高をそのまま広げた起伏メッシュ（川の部分は抜く） */
-function buildGround(main, rv){
+function buildGround(main, rv, cuts, margin){
   let x0 = -HALF_LEN - 20, x1 = HALF_LEN + 20, z0 = -HALF_LEN - 20, z1 = HALF_LEN + 20;
-  for (const p of main.p){ x0 = Math.min(x0, p.x - 120); x1 = Math.max(x1, p.x + 120); z0 = Math.min(z0, p.z - 120); z1 = Math.max(z1, p.z + 120); }
+  for (const p of main.p){ x0 = Math.min(x0, p.x - margin); x1 = Math.max(x1, p.x + margin); z0 = Math.min(z0, p.z - margin); z1 = Math.max(z1, p.z + margin); }
   const step = 2.5;
   const nx = Math.ceil((x1 - x0)/step) + 1, nz = Math.ceil((z1 - z0)/step) + 1;
   const pos = new Float32Array(nx*nz*3), uv = new Float32Array(nx*nz*2), wet = new Uint8Array(nx*nz);
@@ -697,6 +747,7 @@ function buildGround(main, rv){
       pos[k*3] = x; pos[k*3+1] = p.y - 0.04; pos[k*3+2] = z;
       uv[k*2] = x; uv[k*2+1] = z;
       if (rv && Math.abs(p.along) < 2 && rv.rs*p.lat > rv.e0 + 0.05 && rv.rs*p.lat < rv.far - 0.05) wet[k] = 1;
+      for (const c of cuts) if (Math.abs(p.along) < 2 && c.side*p.lat > c.lat - 0.1) wet[k] = 1;   // 山・海の側は別に作る
     }
   }
   const idx = [];
