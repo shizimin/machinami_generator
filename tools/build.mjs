@@ -29,7 +29,7 @@ if (ai > 0){
   const out = html
     .replace(/<!DOCTYPE html>\s*<html[^>]*>\s*<head>\s*/i, '')
     .replace(/<meta charset="UTF-8">\s*<meta name="viewport"[^>]*>\s*/i, '')
-    .replace(/<title>[^<]*<\/title>/, '<title>街並みジェネレーター</title>\n<script>window.__MACHINAMI_PREVIEW_SAVE__ = true;</script>')
+    .replace(/<title>[^<]*<\/title>/, '<title>ストビュージェネレーター</title>\n<script>window.__MACHINAMI_PREVIEW_SAVE__ = true;</script>')
     .replace(/<\/head>\s*<body>/i, '')
     .replace(/<\/body>\s*<\/html>\s*$/i, '');
   writeFileSync(process.argv[ai + 1], out);
