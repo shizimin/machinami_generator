@@ -87,7 +87,7 @@ function buildMountainSide(town, o){
   }
 
   // 斜面の木
-  const N = Math.round((sB - sA) * (1.4 + 4*o.green));
+  const N = Math.round((sB - sA) * (0.8 + 2.4*o.green));
   for (let i=0; i<N; i++){
     const z = range(r, sA, sB), d = 0.8 + 80*Math.pow(r(), 1.7), kind = r();
     if (mT + d > latMax - 2) continue;

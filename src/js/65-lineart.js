@@ -22,39 +22,46 @@ const lineArt = (() => {
   const quadMat = new THREE.ShaderMaterial({
     uniforms: {
       tN: {value: rtN.texture}, tD: {value: rtN.depthTexture}, tC: {value: rtC.texture},
-      texel: {value: new THREE.Vector2()}, near: {value: 0.2}, far: {value: 900},
+      texel: {value: new THREE.Vector2()}, outTexel: {value: new THREE.Vector2()}, near: {value: 0.2}, far: {value: 900},
       thick: {value: 1.0}, tone: {value: 0}, pr: {value: 1},
     },
     vertexShader: 'varying vec2 vUv; void main(){ vUv = uv; gl_Position = vec4(position.xy, 0.0, 1.0); }',
     fragmentShader: `
       uniform sampler2D tN, tD, tC;
-      uniform vec2 texel;
+      uniform vec2 texel, outTexel;
       uniform float near, far, thick, tone, pr;
       varying vec2 vUv;
       // 奥行き（m）。逆数は平面の上で画面に対して一次式になるので、2階差分で「面の切れ目」だけを拾える
       float zLin(vec2 uv){ float d = texture2D(tD, uv).x; return near*far / (far - d*(far - near)); }
       vec3 nrm(vec2 uv){ return normalize(texture2D(tN, uv).xyz*2.0 - 1.0); }
-      float edgeAt(vec2 o, float ic, vec3 nc, bool sky){
-        float ia = 1.0/zLin(vUv + o), ib = 1.0/zLin(vUv - o);
+      float edgeAt(vec2 uv, vec2 o, float ic, vec3 nc, bool sky){
+        float ia = 1.0/zLin(uv + o), ib = 1.0/zLin(uv - o);
         float lap = abs(ia + ib - 2.0*ic) / ic;                      // 奥行きの段差（輪郭）
         float e = smoothstep(0.022, 0.06, lap);
         if (!sky){
-          float da = dot(nc, nrm(vUv + o)), db = dot(nc, nrm(vUv - o));
+          float da = dot(nc, nrm(uv + o)), db = dot(nc, nrm(uv - o));
           e = max(e, smoothstep(0.86, 0.6, min(da, db)));          // 面の折れ目
         }
         return e;
       }
-      void main(){
-        float zc = zLin(vUv);
-        bool sky = texture2D(tD, vUv).x > 0.99999;
+      // 線の強さ（高解像度の 1 点で計算）
+      float edge(vec2 uv){
+        float zc = zLin(uv);
+        bool sky = texture2D(tD, uv).x > 0.99999;
         float ic = 1.0/zc;
-        vec3 nc = nrm(vUv);
+        vec3 nc = nrm(uv);
         // 手前ほど太く（〜1.6倍）、遠いほど細く（〜0.6倍）
         float k = thick * pr * mix(1.6, 0.6, clamp(zc/70.0, 0.0, 1.0));
         vec2 ox = vec2(texel.x*k, 0.0), oy = vec2(0.0, texel.y*k);
-        float e = max(max(edgeAt(ox, ic, nc, sky), edgeAt(oy, ic, nc, sky)),
-                      max(edgeAt(ox+oy, ic, nc, sky), edgeAt(ox-oy, ic, nc, sky)) * 0.85);
-        e *= 1.0 - 0.8*smoothstep(110.0, 320.0, zc);                 // 遠くの線は薄く
+        float e = max(max(edgeAt(uv, ox, ic, nc, sky), edgeAt(uv, oy, ic, nc, sky)),
+                      max(edgeAt(uv, ox+oy, ic, nc, sky), edgeAt(uv, ox-oy, ic, nc, sky)) * 0.85);
+        return e * (1.0 - 0.8*smoothstep(110.0, 320.0, zc));      // 遠くの線は薄く
+      }
+      void main(){
+        // 1 画素を 4 点で計算して平均（細い線が途切れないように）
+        vec2 q = outTexel*0.25;
+        float e = 0.25*(edge(vUv + vec2(-q.x,-q.y)) + edge(vUv + vec2(q.x,-q.y)) + edge(vUv + vec2(-q.x,q.y)) + edge(vUv + vec2(q.x,q.y)));
+        e = clamp(e*1.15, 0.0, 1.0);
         vec3 paper = vec3(1.0), ink = vec3(0.07, 0.07, 0.08);
         vec3 col = paper;
         if (tone > 0.5){
@@ -76,12 +83,15 @@ const lineArt = (() => {
   const quadCam = new THREE.OrthographicCamera(-1, 1, 1, -1, 0, 1);
   const size = new THREE.Vector2(), clearC = new THREE.Color();
 
+  // 線を取り出す画像は画面の 2 倍の解像度で描く（大きすぎる画面では控えめに）
   function resize(){
     renderer.getDrawingBufferSize(size);
-    rtN.setSize(size.x, size.y);
+    const ss = clamp(Math.min(2, 4096/size.x, 4096/size.y), 1, 2);
+    rtN.setSize(Math.round(size.x*ss), Math.round(size.y*ss));
     rtC.setSize(size.x, size.y);
-    quadMat.uniforms.texel.value.set(1/size.x, 1/size.y);
-    quadMat.uniforms.pr.value = renderer.getPixelRatio();
+    quadMat.uniforms.texel.value.set(1/(size.x*ss), 1/(size.y*ss));
+    quadMat.uniforms.outTexel.value.set(1/size.x, 1/size.y);
+    quadMat.uniforms.pr.value = renderer.getPixelRatio()*ss;
   }
   resize();
 

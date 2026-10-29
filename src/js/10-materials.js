@@ -135,7 +135,7 @@ const MAT = {
   steelDk:  M(0x3c3f43, {r:0.6, m:0.4}),
   pole:     M(0xb9b7b0, {r:0.8}),
   poleBase: M(0x9a978f),
-  trunk:    M(0x6e5642, {r:1, flat:true}),
+  trunk:    M(0x6e5642, {r:1}),
   glass:    M(0x29323b, {r:0.08, m:0.2}),
   glassLit: M(0x6c7884, {r:0.2, m:0.1, glow:1.1, glowHex:0xffc98a}),
   glassCool:M(0x707c88, {r:0.2, m:0.1, glow:1.0, glowHex:0xe4eeff}),
@@ -163,7 +163,7 @@ const MAT = {
   signW:    M(0xf3f2ec, {r:0.5}),
   wood:     M(0x8a6a4c, {r:0.85}),
   woodDk:   M(0x5c4634, {r:0.85}),
-  leafCherry:M(0xf0c3cf, {r:0.9, flat:true}),
+  leafCherry:M(0xf0c3cf, {r:0.9}),
   kenchi:   M(0xffffff, {map:'kenchi', r:0.95}),
   sand:     M(0xd8cba9, {map:'asphalt', r:1, wet:1}),
   sea:      M(0x2a5062, {r:0.08, m:0.05, noCast:true}),
@@ -183,5 +183,5 @@ const WALLS_RES = [0xf1efe8,0xe6e2d6,0xd9d5ca,0xcfd3d6,0xe9dfc9,0xdad0be,0xc9cdd
 const ROOFS     = [0x4a4f57,0x37404d,0x5a4a41,0x6b6f76,0x3d4a42,0x7a4d3a].map(h=>M(h,{r:0.8}));
 const WALLS_SHO = [0xd8d6d0,0xc4c6c9,0xb9bcc2,0xdedbd2,0xa7abb2,0xcfc9bd,0x9aa0a8,0xe2d9c8].map(h=>M(h,{r:0.85}));
 const SIGNS     = [0xe25822,0x2255aa,0xcc2233,0xf4f1e8,0xe8b830,0x1f7a4d,0x14203a,0xffffff,0x7a2e8e].map(h=>M(h,{r:0.5, glow:0.9}));
-const GREENS    = [0x5d7a4a,0x6d8a52,0x4e6b3f,0x7a9156].map(h=>M(h,{r:0.95, flat:true}));
+const GREENS    = [0x5d7a4a,0x6d8a52,0x4e6b3f,0x7a9156].map(h=>M(h,{r:0.95}));
 const CAR_COLORS= [0xf2f2ef,0xf2f2ef,0xc9ccd0,0xc9ccd0,0x23262b,0x2d3e5c,0x8c1f24,0xcbbd9e,0x5f6a5a].map(h=>M(h,{r:0.3, m:0.35}));

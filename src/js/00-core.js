@@ -87,8 +87,11 @@ function cachedGeo(key, make){
   if (!g){ g = make(); GEO_CACHE.set(key, g); }
   return g;
 }
+/* 丸い物の分割の細かさ（パソコン向けに細かめ。線画で角が出ないように） */
+const DETAIL = 2.5;
 /* 円柱（高さ 1 の形状を縦に伸ばす） */
 function cyl(rt, rb, h, seg, mat){
+  seg = Math.max(10, Math.round(seg*DETAIL));
   const g = cachedGeo(`cyl${rt},${rb},${seg}`, ()=> new THREE.CylinderGeometry(rt, rb, 1, seg));
   const m = new THREE.Mesh(g, mat); m.scale.y = h; return m;
 }
@@ -105,12 +108,15 @@ function rod(parent, ax,ay,az, bx,by,bz, r, mat, seg){
   m.quaternion.setFromUnitVectors(_up, _vb.sub(_va).normalize());
   parent.add(m); return m;
 }
+/* 球（なめらかな法線。detail 0=粗め 1=標準 2=細かい） */
 function sphere(r, detail, mat){
-  const g = cachedGeo(`ico${detail}`, ()=> new THREE.IcosahedronGeometry(1, detail));
+  const seg = [12, 22, 32][detail ?? 1] || 22;
+  const g = cachedGeo(`sph${seg}`, ()=> new THREE.SphereGeometry(1, seg, Math.round(seg*0.7)));
   const m = new THREE.Mesh(g, mat); m.scale.setScalar(r); return m;
 }
 /* 円盤（向きは +Z を向く） */
 function disc(r, depth, seg, mat){
+  seg = Math.max(16, Math.round(seg*DETAIL));
   const g = cachedGeo(`disc${seg}`, ()=> { const c = new THREE.CylinderGeometry(1,1,1,seg); c.rotateX(Math.PI/2); return c; });
   const m = new THREE.Mesh(g, mat); m.scale.set(r, r, depth); return m;
 }
