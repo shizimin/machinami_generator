@@ -3134,22 +3134,8 @@ addEventListener('message', e => {
     width: renderer.domElement.width, height: renderer.domElement.height, settings,
   }, /^https?:/.test(e.origin) ? e.origin : '*');   // ファイルを直接開いたとき（file://）は宛先を限定できない
 });
-// 埋め込まれていることを親に知らせる（親は準備完了の合図に使える）。
-// 親の受け取り準備が遅れても聞き逃さないよう、撮影を頼まれるまで 1 秒ごとに 60 回まで送り直す。
-// 親から { type:'stv-ping' } が来たときも、すぐに返す。
-let stvAsked = false;
-function sendReady(){ if (window.parent !== window) window.parent.postMessage({ type: 'stv-ready' }, '*'); }
-addEventListener('message', e => {
-  const d = e.data;
-  if (!d) return;
-  if (d.type === 'stv-ping') sendReady();
-  if (d.type === 'stv-capture') stvAsked = true;
-});
-if (window.parent !== window){
-  let n = 0;
-  sendReady();
-  const t = setInterval(() => { if (stvAsked || ++n >= 60) clearInterval(t); else sendReady(); }, 1000);
-}
+// 埋め込まれていることを親に知らせる（親は準備完了の合図に使える）
+if (window.parent !== window) window.parent.postMessage({ type: 'stv-ready' }, '*');
 
 </script>
 </body>
