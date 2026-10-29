@@ -15,6 +15,7 @@ function showVal(id){
   else if (id==='height') el.textContent = '×'+v.toFixed(2);
   else if (id==='curve') el.textContent = v === 0 ? 'まっすぐ' : (v < 0 ? '左 ' : '右 ') + Math.round(Math.abs(v)*100) + '%';
   else if (id==='slope') el.textContent = v === 0 ? '平ら' : (v > 0 ? '上り ' : '下り ') + Math.abs(v) + '%';
+  else if (id==='lineW') el.textContent = '×'+v.toFixed(1);
   else el.textContent = (id==='eyeH' ? v.toFixed(1) : v) + (UNITS[id]||'');
 }
 function syncInput(id){
@@ -44,7 +45,7 @@ function rebuildNow(keepCam){
   if (!keepCam) resetCamera();
 }
 
-const CAMERA_KEYS = ['eyeH','fov'];
+const CAMERA_KEYS = ['eyeH','fov','lineW'];
 const ENV_KEYS = ['sunAz'];
 document.querySelectorAll('input[type=range][data-key]').forEach(el=>{
   const id = el.dataset.key;
@@ -84,6 +85,7 @@ function modePreset(v, prev){
   syncInput('roadW'); syncInput('sidewalk'); syncSeg('poles');
 }
 
+const VIEW_SEGS = ['view'];
 const REBUILD_SEGS = ['mode','street','junction','poles','sideL','sideR','backdrop'];
 document.querySelectorAll('.seg[data-key]').forEach(seg=>{
   const key = seg.dataset.key;
@@ -96,7 +98,7 @@ document.querySelectorAll('.seg[data-key]').forEach(seg=>{
       if (key === 'street') streetPreset(b.dataset.v);
       if (key === 'mode') modePreset(b.dataset.v, prev);
       if (REBUILD_SEGS.includes(key)) queueRebuild(0, key === 'street' || key === 'junction');
-      else applyEnv();
+      else if (!VIEW_SEGS.includes(key)) applyEnv();
     });
   });
 });
@@ -127,7 +129,7 @@ function showShot(url){
   ov.hidden = false;
 }
 document.getElementById('shutter').addEventListener('click', ()=>{
-  renderer.render(scene, camera);
+  lineArt.render();
   if (SAVE_BY_PREVIEW){ showShot(renderer.domElement.toDataURL('image/png')); return; }
   renderer.domElement.toBlob(blob=>{
     const a = document.createElement('a');
@@ -156,6 +158,7 @@ addEventListener('resize', ()=>{
   camera.aspect = innerWidth/innerHeight;
   camera.updateProjectionMatrix();
   renderer.setSize(innerWidth, innerHeight);
+  lineArt.resize();
   syncPanel();
 });
 
@@ -164,11 +167,11 @@ function loop(now){
   const dt = Math.min(0.05,(now-prev)/1000); prev = now;
   updateCamera(dt);
   updateSky(now);
-  renderer.render(scene, camera);
+  lineArt.render();
   requestAnimationFrame(loop);
 }
 
-for (const k of ['mode','street','junction','poles','sideL','sideR','backdrop','time','weather','shadows']) syncSeg(k);
+for (const k of ['view','mode','street','junction','poles','sideL','sideR','backdrop','time','weather','shadows']) syncSeg(k);
 applyEnv();
 rebuildNow();
 requestAnimationFrame(loop);

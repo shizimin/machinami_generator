@@ -12,7 +12,8 @@ const state = {
   roadW:6, sidewalk:1.25, density:0.85, height:1, green:0.55, poleGap:24, apartments:0.12,
   props:0.6, people:0.25,
   time:'day', weather:'clear', sunAz:215, shadows:'on',
-  eyeH:1.5, fov:55
+  eyeH:1.5, fov:55,
+  view:'normal', lineW:1.0   // 表示：normal / line(線画) / tone(線画＋トーン)、線の太さ
 };
 const HALF_LEN = 150;          // 道路の片側の長さ（m）
 const LOT_HALF = 135;          // 区画を並べる範囲

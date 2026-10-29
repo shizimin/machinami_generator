@@ -32,6 +32,18 @@
 <div id="panel">
   <div id="handle">調整</div>
   <div id="panelbody">
+    <div class="sectionlabel">表示</div>
+    <div class="seg dark" data-key="view">
+      <button data-v="normal" class="on">ふつう</button>
+      <button data-v="line">線画</button>
+      <button data-v="tone">線画＋トーン</button>
+    </div>
+    <div class="grid">
+      <div class="ctl wide"><div class="row"><label>線の太さ</label><span class="val" data-for="lineW"></span></div>
+        <input type="range" data-key="lineW" min="0.5" max="2.5" step="0.1" value="1"></div>
+    </div>
+
+    <div class="sectionlabel">街の種類</div>
     <div class="modes seg dark" data-key="mode">
       <button data-v="res" class="on">住宅街</button>
       <button data-v="sho">繁華街</button>
