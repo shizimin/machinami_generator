@@ -172,23 +172,3 @@ for (const k of ['mode','street','junction','poles','sideL','sideR','backdrop','
 applyEnv();
 rebuildNow();
 requestAnimationFrame(loop);
-
-/* ================= 外部アプリとの連携 =================
-   別のページ（Google AI Studio のアプリなど）に iframe で埋め込まれたとき、
-   親から { type:'stv-capture', id } が届いたら今の画面を画像にして返す。
-   返すもの：{ type:'stv-capture-result', id, image（data URL）, width, height, settings } */
-addEventListener('message', e => {
-  const d = e.data;
-  if (!d || d.type !== 'stv-capture' || !e.source) return;
-  renderer.render(scene, camera);
-  const fmt = d.format === 'png' ? 'image/png' : 'image/jpeg';
-  const image = renderer.domElement.toDataURL(fmt, 0.92);
-  const settings = {};
-  for (const k of ['mode','street','junction','sideL','sideR','time','weather','seed','curve','slope']) settings[k] = state[k];
-  e.source.postMessage({
-    type: 'stv-capture-result', id: d.id, image,
-    width: renderer.domElement.width, height: renderer.domElement.height, settings,
-  }, /^https?:/.test(e.origin) ? e.origin : '*');   // ファイルを直接開いたとき（file://）は宛先を限定できない
-});
-// 埋め込まれていることを親に知らせる（親は準備完了の合図に使える）
-if (window.parent !== window) window.parent.postMessage({ type: 'stv-ready' }, '*');
