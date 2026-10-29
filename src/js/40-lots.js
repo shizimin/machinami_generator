@@ -23,11 +23,6 @@ function frontBoundary(g, rng, lotW, ctx){
       if (b-a < 0.3) continue;
       Bb(g, b-a, h, 0.15, mat, (a+b)/2, 0.12, 0.2);
       Bb(g, b-a+0.02, 0.05, 0.2, MAT.concrete, (a+b)/2, 0.12+h, 0.2);
-      // ブロックの目地（横 20cm・縦 40cm の互い違い）
-      for (let y = 0.2, row = 0; y < h - 0.05; y += 0.2, row++){
-        B(g, b-a, 0.02, 0.02, MAT.frameDk, (a+b)/2, 0.12 + y, 0.12);
-        for (let x = a + (row%2 ? 0.2 : 0.4); x < b - 0.05; x += 0.4) B(g, 0.02, 0.2, 0.02, MAT.frameDk, x, 0.12 + y - 0.1, 0.12);
-      }
     }
   } else if (kind < 0.8){
     // アルミフェンス（低い腰壁＋横格子）
@@ -102,30 +97,13 @@ function residentialLot(rng, lotW, ctx){
   B(g, 1.16, 0.08, 0.1, MAT.frame, doorX, 0.12+2.44, front - 0.05);
   B(g, 1.7, 0.1, 1.0, pick(rng,ROOFS), doorX, 0.12+2.7, front - 0.48);          // 玄関の庇
   Bb(g, 1.6, 0.2, 0.7, MAT.concrete, doorX, 0.12, front - 0.35);                 // ポーチの段
-  // 玄関ドアの細部（框・縦の溝・取っ手・袖のガラス・インターホン・照明）
-  for (const k of [-0.25, 0.25]) B(g, 0.015, 1.8, 0.02, MAT.frameDk, doorX + k, 0.12 + 1.5, front - 0.09);
-  rod(g, doorX + 0.38, 0.12 + 1.15, front - 0.12, doorX + 0.38, 0.12 + 1.75, front - 0.12, 0.018, MAT.rail, 6);
-  B(g, 0.22, 1.9, 0.04, MAT.glass, doorX - 0.66, 0.12 + 1.45, front - 0.03);
-  B(g, 0.1, 0.16, 0.05, MAT.frameDk, doorX + 0.75, 0.12 + 1.45, front - 0.03);
-  const porchL = sphere(0.09, 1, MAT.lamp); porchL.scale.z *= 0.6; porchL.position.set(doorX - 0.75, 0.12 + 2.2, front - 0.06); g.add(porchL);
-  // 外壁の角の見切り材・基礎の水切り・床下換気口
-  for (const sx of [-1,1]) for (const sz of [-1,1]) Bb(g, 0.1, bh - 0.4, 0.1, MAT.trim, hx + sx*bw/2, 0.52, hz + sz*bd/2);
-  B(g, bw + 0.09, 0.04, bd + 0.09, MAT.frameDk, hx, 0.5, hz);
-  for (let x = hx - bw/2 + 0.8; x < hx + bw/2 - 0.5; x += 1.8)
-    if (Math.abs(x - doorX) > 1) B(g, 0.35, 0.12, 0.03, MAT.frameDk, x, 0.32, front - 0.03);
-  // 電気メーター・ガスメーター
-  { const mx = hx + bw/2 - 0.45;
-    B(g, 0.24, 0.36, 0.1, MAT.ac, mx, 1.6, front - 0.06);
-    const dial = disc(0.07, 0.02, 12, MAT.glass); dial.position.set(mx, 1.64, front - 0.12); g.add(dial);
-    Bb(g, 0.26, 0.3, 0.16, MAT.ac, mx - 0.5, 0.75, front - 0.09);
-    rod(g, mx - 0.5, 0.3, front - 0.12, mx - 0.5, 0.75, front - 0.12, 0.02, MAT.rail, 6); }
   // 側面の窓
   if (bd > 4){
     for (const sx of [-1,1]){
       const sf = new THREE.Group();
       sf.position.set(hx + sx*bw/2, 0.12, hz); sf.rotation.y = -sx*Math.PI/2; g.add(sf);
       addWindows(sf, rng, bd*0.8, bh, 0, -1, Math.max(1,Math.round(bd/2.6)), floors,
-        {ww:0.7, wh:0.95, y0:0.3, litRatio:0.15, grille:0.35});
+        {ww:0.7, wh:0.95, y0:0.3, litRatio:0.15});
     }
   }
 
@@ -144,48 +122,20 @@ function residentialLot(rng, lotW, ctx){
     Bb(g, bw-0.2, 0.06, bd-0.2, roofMat, hx, top + 0.3, hz);
   }
   // 雨樋（縦樋）
-  for (const sx of [-1,1]){
-    const px = hx + sx*(bw/2+0.08);
-    C(g, 0.05, 0.05, bh - 0.1, 6, MAT.frame, px, 0.12, front - 0.06);
-    rod(g, px, 0.12 + bh - 0.1, front - 0.06, px, 0.12 + bh + 0.1, front - 0.5, 0.045, MAT.frame, 6);   // 軒樋へ曲がる部分
-    for (let y = 0.8; y < bh - 0.3; y += 1.4) B(g, 0.14, 0.03, 0.1, MAT.frame, px, 0.12 + y, front - 0.03);   // 留め金具
-  }
-  // テレビアンテナ
-  if (rt < 0.82 && rng() < 0.45){
-    const ax = hx + range(rng, -0.25, 0.25)*bw, ay = top + (rt < 0.45 ? 1.0 : 1.2);
-    rod(g, ax, ay - 0.6, hz, ax, ay + 1.6, hz, 0.025, MAT.rail, 6);
-    for (let i=0; i<4; i++){
-      const yy = ay + 0.6 + i*0.25, w = 0.9 - i*0.15;
-      rod(g, ax - w/2, yy, hz, ax + w/2, yy, hz, 0.012, MAT.rail, 4);
-    }
-    rod(g, ax, ay + 0.7, hz - 0.5, ax, ay + 0.7, hz + 0.5, 0.012, MAT.rail, 4);
-  }
+  for (const sx of [-1,1]) C(g, 0.05, 0.05, bh, 6, MAT.frame, hx + sx*(bw/2+0.06), 0.12, front - 0.06);
 
   // 室外機
   if (rng() < 0.65){
     const ax = hx + range(rng,-1,1)*bw*0.35;
     Bb(g, 0.8, 0.58, 0.3, MAT.ac, ax, 0.12, front - 0.2);
     const fan = disc(0.2, 0.02, 12, MAT.acFan); fan.position.set(ax - 0.12, 0.12+0.29, front - 0.36); g.add(fan);
-    for (const rr of [0.08, 0.14, 0.2]){ const ring = new THREE.Mesh(cachedGeo('acRing'+rr, ()=> new THREE.TorusGeometry(rr, 0.008, 4, 24)), MAT.frameDk); ring.position.set(ax - 0.12, 0.12+0.29, front - 0.375); g.add(ring); }
-    Bb(g, 0.1, 1.6, 0.1, MAT.ac, ax + 0.3, 0.7, front - 0.06);                      // 配管カバー
   }
   // 2階ベランダ
   if (floors === 2 && rng() < 0.6){
     const vw = bw*range(rng,0.5,0.8);
     Bb(g, vw, 0.12, 0.9, wall, hx, 0.12 + fh - 0.05, front - 0.45);
-    const rm = pick(rng,[MAT.frame, MAT.frameDk]);
-    if (rng() < 0.5){
-      Bb(g, vw, 0.85, 0.06, pick(rng,[MAT.frame, MAT.frameDk, wall]), hx, 0.12 + fh + 0.07, front - 0.88);
-    } else {   // 縦格子の手すり
-      for (let x = hx - vw/2 + 0.06; x < hx + vw/2; x += 0.12) rod(g, x, 0.12 + fh + 0.07, front - 0.88, x, 0.12 + fh + 0.9, front - 0.88, 0.012, rm, 4);
-      B(g, vw, 0.06, 0.08, rm, hx, 0.12 + fh + 0.92, front - 0.88);
-      B(g, vw, 0.04, 0.06, rm, hx, 0.12 + fh + 0.12, front - 0.88);
-    }
+    Bb(g, vw, 0.85, 0.06, pick(rng,[MAT.frame, MAT.frameDk, wall]), hx, 0.12 + fh + 0.07, front - 0.88);
     for (const sx of [-1,1]) Bb(g, 0.06, 0.85, 0.9, MAT.frame, hx + sx*vw/2, 0.12 + fh + 0.07, front - 0.45);
-    if (rng() < 0.4){   // 物干し竿
-      for (const sx of [-1,1]) rod(g, hx + sx*(vw/2 - 0.1), 0.12 + fh + 1.5, front - 0.05, hx + sx*(vw/2 - 0.1), 0.12 + fh + 1.5, front - 0.5, 0.02, MAT.rail, 4);
-      rod(g, hx - vw/2 + 0.05, 0.12 + fh + 1.5, front - 0.45, hx + vw/2 - 0.05, 0.12 + fh + 1.5, front - 0.45, 0.018, MAT.rail, 6);
-    }
   }
 
   // 前面の境界
@@ -250,18 +200,12 @@ function apartmentLot(rng, lotW, ctx){
   addWindows(wg, rng, bw*0.94, bh, -bd/2, -1, units, floors,
     {ww:uw*0.62, wh:2.0, y0:-0.05, litRatio:0.35, frameMat:MAT.frameDk});
   const railMat = pick(rng, [wall, M(0xcac6bc,{r:0.8}), M(0x8a9198,{r:0.4,m:0.3}), M(0xb8c4cc,{r:0.2, op:0.6})]);
-  const barRail = rng() < 0.5;
-  for (let u=1; u<units; u++) C(g, 0.05, 0.05, bh, 6, MAT.frame, bx - bw/2 + u*uw + 0.12, 0.12, front - 1.05);   // 竪樋
   for (let f=0; f<floors; f++){
     const y = 0.12 + f*fh;
     Bb(g, bw, 0.16, 1.2, wall, bx, y + fh - 0.12, front - 0.6);              // 上階の床スラブ＝庇
     if (f === 0) continue;
-    if (barRail){   // 縦格子の手すり
-      for (let x = bx - bw/2 + 0.07; x < bx + bw/2; x += 0.14) rod(g, x, y + 0.05, front - 1.16, x, y + 1.0, front - 1.16, 0.013, MAT.frameDk, 4);
-      Bb(g, bw, 0.08, 0.08, MAT.frameDk, bx, y, front - 1.16);
-    } else Bb(g, bw, 1.0, 0.08, railMat, bx, y + 0.0, front - 1.16);                // 手すり壁
+    Bb(g, bw, 1.0, 0.08, railMat, bx, y + 0.0, front - 1.16);                // 手すり壁
     Bb(g, bw, 0.05, 0.14, MAT.frame, bx, y + 1.0, front - 1.16);
-    B(g, bw + 0.02, 0.03, 1.22, MAT.trim, bx, y + fh - 0.2, front - 0.6);       // スラブの見付け
     for (let u=1; u<units; u++){                                              // 隔て板
       Bb(g, 0.04, 1.9, 1.1, M(0xe7e3d8,{r:0.6}), bx - bw/2 + u*uw, y, front - 0.58);
     }
@@ -331,11 +275,8 @@ function shoppingLot(rng, lotW, ctx){
     if (rng() < 0.7){
       const sw = bw * range(rng,0.5,0.92), sh = range(rng,0.6,1.1);
       const sx = range(rng,-1,1)*(bw-sw)/2*0.7, sy = 0.05 + f*fh + fh*0.78;
-      const sm = pick(rng,SIGNS);
-      B(g, sw, sh, 0.12, sm, sx, sy, front - 0.08);
+      B(g, sw, sh, 0.12, pick(rng,SIGNS), sx, sy, front - 0.08);
       B(g, sw+0.08, sh+0.08, 0.06, MAT.frameDk, sx, sy, front - 0.02);
-      const nL = clamp(Math.floor(sw/(sh*0.75)), 2, 7), lm = sm === SIGNS[3] || sm === SIGNS[7] ? MAT.black : MAT.signW;
-      for (let i=0; i<nL; i++) B(g, sh*0.5, sh*0.55, 0.03, lm, sx - sw/2 + (i+0.5)*sw/nL, sy, front - 0.155);   // 文字
     }
   }
   // 上階の窓
@@ -381,10 +322,7 @@ function shoppingLot(rng, lotW, ctx){
       const sh = low ? range(rng,1.4,2.2) : range(rng,2.2,5)*Math.min(1.5,s.height);
       const sy = range(rng, fh, Math.max(fh+0.3, bh - sh));
       const sx = (rng()<0.5?-1:1)*(bw/2-0.25);
-      const vm = pick(rng,SIGNS);
-      B(g, 0.65, sh, 0.26, vm, sx, sy + sh/2, front - 0.55);
-      const nV = Math.max(2, Math.floor(sh/0.55)), vl = vm === SIGNS[3] || vm === SIGNS[7] ? MAT.black : MAT.signW;
-      for (let i=0; i<nV; i++) B(g, 0.4, Math.min(0.4, sh/nV*0.75), 0.03, vl, sx, sy + sh - (i+0.5)*sh/nV, front - 0.695);   // 縦書きの文字
+      B(g, 0.65, sh, 0.26, pick(rng,SIGNS), sx, sy + sh/2, front - 0.55);
       B(g, 0.7, sh+0.06, 0.18, MAT.frameDk, sx, sy + sh/2, front - 0.55);
       B(g, 0.08, 0.08, 0.5, MAT.steelDk, sx, sy + 0.3, front - 0.2);
       B(g, 0.08, 0.08, 0.5, MAT.steelDk, sx, sy + sh - 0.3, front - 0.2);
